@@ -1,0 +1,6 @@
+clientes=3
+mensajes=5
+filtros=2
+servidores=2
+capEntrada=10
+capEntrega=10
