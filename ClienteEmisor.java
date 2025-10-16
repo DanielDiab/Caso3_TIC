@@ -23,7 +23,7 @@ public class ClienteEmisor implements Runnable {
 
             // 2. Mensajes normales
             for (int i = 1; i <= numMensajes; i++) {
-                boolean esSpam = random.nextBoolean(); // true = spam, false = válido
+                boolean esSpam = random.nextBoolean(); // true = spam, false = valido
                 String id = nombre + "-MSG-" + i;
                 Mensaje msg = new Mensaje(id, nombre, Mensaje.Tipo.NORMAL, esSpam);
                 buzonEntrada.put(msg);
