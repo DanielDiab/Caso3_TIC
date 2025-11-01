@@ -1,33 +1,65 @@
 # Caso 3 - Concurrencia y Sincronización de Procesos  
 
 ## Descripción  
-Este proyecto implementa un **simulador de un sistema de mensajería distribuido** en Java. El objetivo es aplicar conceptos de **concurrencia y sincronización de procesos** vistos en clase, utilizando únicamente las primitivas básicas de Java (`synchronized`, `wait`, `notify`, `notifyAll`, `join`, etc.).  
+Este proyecto implementa un **simulador de un sistema de mensajería distribuido** en Java, diseñado para aplicar los conceptos de **concurrencia y sincronización de procesos** vistos en clase.  
 
-El sistema simula el envío y procesamiento de correos electrónicos entre diferentes actores:  
-- **Clientes emisores**: generan correos electrónicos y los depositan en el buzón de entrada.  
-- **Filtros**: consumen del buzón de entrada, determinan si un mensaje es spam o válido y lo envían a cuarentena o entrega.  
-- **Manejador de cuarentena**: procesa mensajes en cuarentena durante un tiempo, descarta los maliciosos y envía los válidos al buzón de entrega.  
-- **Servidores de entrega**: consumen mensajes del buzón de entrega hasta recibir un mensaje de fin.  
+El sistema utiliza únicamente las primitivas básicas de sincronización de Java (`synchronized`, `wait`, `notify`, `notifyAll`, `join`) y coordina múltiples hilos que representan el flujo completo de procesamiento de correos electrónicos en un entorno distribuido.  
+
+El objetivo principal es demostrar el uso correcto de la **comunicación entre hilos productores y consumidores**, evitando bloqueos, condiciones de carrera e interbloqueos, garantizando además una **finalización ordenada y automática del sistema**.  
+
+---
+
+## Arquitectura del Sistema  
+
+El sistema está compuesto por los siguientes actores concurrentes:  
+
+- **Clientes emisores**: generan mensajes (inicio, normales, fin) y los depositan en el buzón de entrada.  
+- **Filtros de spam**: consumen del buzón de entrada, clasifican los mensajes como spam o válidos, y los dirigen a cuarentena o entrega.  
+- **Manejador de cuarentena**: procesa los mensajes en cuarentena durante cierto tiempo, descarta los maliciosos y libera los válidos al buzón de entrega.  
+- **Servidores de entrega**: consumen mensajes del buzón de entrega y los procesan hasta recibir una señal de fin global.  
+- **Coordinador de finalización global**: detecta cuando todos los clientes han finalizado y emite señales de cierre (`FIN`) para que todos los hilos terminen correctamente.  
 
 ---
 
 ## Estructura del Proyecto  
-El código se organiza en las siguientes clases:  
 
-- **Mensaje**: representa un correo electrónico con identificador, cliente, tipo (INICIO, NORMAL, FIN), bandera de spam y tiempo de cuarentena.  
-- **Buzon**: implementación de un buzón compartido con capacidad limitada (entrada y entrega) o ilimitada (cuarentena), con control de concurrencia mediante `synchronized`, `wait` y `notifyAll`.  
-- **ClienteEmisor**: productor de mensajes. Envía un mensaje de inicio, N mensajes normales y un mensaje de fin.  
-- **Filtro**: consumidor del buzón de entrada. Clasifica mensajes como spam o válidos, y maneja los mensajes de inicio y fin.  
-- **ManejadorCuarentena**: procesa mensajes en cuarentena, reduce su tiempo de espera y decide si pasan a entrega o se descartan.  
-- **ServidorEntrega**: consumidor del buzón de entrega que procesa mensajes hasta recibir un mensaje de fin.  
-- **Simulador**: clase principal que inicializa los buzones, crea los hilos de clientes, filtros, manejador de cuarentena y servidores, y los ejecuta en paralelo.  
+El proyecto se compone de las siguientes clases:
+
+| Clase | Descripción |
+|-------|--------------|
+| **Mensaje** | Representa un correo electrónico con identificador, cliente emisor, tipo (`INICIO`, `NORMAL`, `FIN`), bandera de spam y tiempo de cuarentena. |
+| **Buzon** | Implementa una cola compartida con capacidad limitada (entrada y entrega) o ilimitada (cuarentena). Gestiona la sincronización de productores y consumidores mediante `synchronized`, `wait` y `notifyAll`. |
+| **ClienteEmisor** | Actúa como productor. Envía un mensaje de inicio, varios mensajes normales (algunos spam) y un mensaje final de cierre (`FIN`). |
+| **FiltroSpam** | Actúa como consumidor del buzón de entrada. Clasifica los mensajes y coordina el fin del sistema mediante un **Coordinador de Fin Global** compartido entre todos los filtros. |
+| **ManejadorCuarentena** | Procesa mensajes spam con un tiempo de cuarentena aleatorio (10–20 segundos). Cada segundo reduce su tiempo restante y, cuando llega a cero, puede descartar el mensaje o enviarlo a entrega. |
+| **ServidorEntrega** | Consume del buzón de entrega, simula la entrega de los mensajes válidos y finaliza al recibir un mensaje de tipo `FIN`. |
+| **Simulador** | Clase principal. Crea los buzones, inicializa los hilos de todos los actores y coordina su ejecución y finalización automática. |
+
+---
+
+## Mecanismo de Sincronización y Finalización  
+
+El sistema utiliza **sincronización explícita** (`wait`, `notifyAll`) y un mecanismo de coordinación global implementado en la clase `FiltroSpam.CoordinadorFin`:
+
+1. Cada filtro aumenta un contador global cada vez que recibe un mensaje `FIN` de un cliente.  
+2. Cuando el número de `FIN` recibidos es igual al total de clientes, **un único filtro** emite un conjunto de mensajes `FIN` globales:  
+   - Uno por cada servidor de entrega.  
+   - Uno para el manejador de cuarentena.  
+   - Uno para cada filtro restante (para desbloquear los que estén esperando en `take()`).  
+3. Cada actor, al recibir su `FIN`, sale limpiamente del ciclo principal.  
+4. El hilo principal (`Simulador`) hace `join()` sobre todos los hilos y muestra el mensaje:  
+
+=== Simulación completada. Todos los hilos finalizaron correctamente. ===
+
+De esta forma se garantiza que **ningún hilo quede bloqueado** y que la simulación se detenga automáticamente sin intervención manual.
 
 ---
 
 ## Configuración  
-El programa recibe parámetros de configuración desde un archivo `config.txt`.  
 
-Ejemplo de archivo: 
+El programa toma los parámetros desde un archivo `config.txt` ubicado en el mismo directorio del proyecto.  
+
+Ejemplo de configuración:
 
 clientes=3
 mensajes=5
@@ -36,49 +68,24 @@ servidores=2
 capEntrada=10
 capEntrega=10
 
-Parámetros:  
-- **clientes**: número de clientes emisores.  
-- **mensajes**: cantidad de mensajes generados por cada cliente.  
-- **filtros**: número de filtros de spam.  
-- **servidores**: número de servidores de entrega.  
-- **capEntrada**: capacidad máxima del buzón de entrada.  
-- **capEntrega**: capacidad máxima del buzón de entrega.  
+**Parámetros:**
+- `clientes`: número de clientes emisores.  
+- `mensajes`: cantidad de mensajes que genera cada cliente.  
+- `filtros`: número de filtros de spam concurrentes.  
+- `servidores`: número de servidores de entrega concurrentes.  
+- `capEntrada`: capacidad máxima del buzón de entrada.  
+- `capEntrega`: capacidad máxima del buzón de entrega.  
 
 ---
 
 ## Ejecución  
 
-### Desde un IDE (IntelliJ, VS Code, Eclipse, NetBeans)  
+### Desde un IDE (IntelliJ, VS Code, Eclipse, NetBeans)
 1. Colocar `config.txt` en el directorio raíz del proyecto.  
 2. Ejecutar la clase `Simulador`.  
-3. El sistema leerá la configuración y lanzará los hilos correspondientes.  
+3. Observar el flujo de ejecución y los mensajes en la consola.
 
-### Desde la terminal  
-1. Compilar todas las clases:  
-   ```bash
-   javac *.java
-2.	Asegurarse de que config.txt esté en el mismo directorio de ejecución.
-3.	Ejecutar el simulador:
+### Desde la terminal
+```bash
+javac *.java
 java Simulador
-
-Funcionamiento del Sistema
-1.	Clientes emisores generan mensajes y los depositan en el buzón de entrada.
-2.	Filtros consumen del buzón de entrada:
-	•	Mensajes de inicio → se envían al buzón de entrega.
-	•	Mensajes normales válidos → se envían al buzón de entrega.
-	•	Mensajes normales spam → se envían a cuarentena con un tiempo asignado.
-	•	Mensajes de fin → incrementan un contador y, cuando todos los clientes terminan, se envía un mensaje de fin al buzón de entrega.
-3.	Manejador de cuarentena revisa los mensajes:
-	•	Cada segundo reduce su tiempo de espera.
-	•	Si llega a cero, se descarta con cierta probabilidad o se pasa al buzón de entrega.
-	•	Termina cuando recibe un mensaje de fin.
-4.	Servidores de entrega procesan mensajes hasta recibir un mensaje de fin.
-
-Validación
-
-Se realizaron pruebas con diferentes configuraciones en el archivo config.txt, verificando:
-•	Que todos los clientes envían sus mensajes de inicio, normales y fin.
-•	Que los filtros clasifican correctamente los mensajes.
-•	Que el manejador de cuarentena descarta y entrega mensajes según las reglas.
-•	Que los servidores procesan hasta recibir el mensaje de fin.
-•	Que todos los hilos terminan correctamente y no quedan mensajes en los buzones.

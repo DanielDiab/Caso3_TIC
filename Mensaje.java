@@ -1,23 +1,24 @@
 public class Mensaje {
-    public enum Tipo {
-        INICIO, NORMAL, FIN
-    }
+    public enum Tipo { INICIO, NORMAL, FIN }
 
-    private final String id;        // identificador único (cliente + secuencia)
-    private final String cliente;   // nombre o id del cliente emisor
-    private final Tipo tipo;        // INICIO, NORMAL, FIN
-    private final boolean esSpam;   // flag para correos normales
-    private int tiempoCuarentena;   // usado cuando va a cuarentena
+    private final String id;
+    private final String cliente;
+    private final Tipo tipo;
+    private final boolean esSpam;
+    private int tiempoCuarentena; 
 
     public Mensaje(String id, String cliente, Tipo tipo, boolean esSpam) {
+        this(id, cliente, tipo, esSpam, 0);
+    }
+
+    public Mensaje(String id, String cliente, Tipo tipo, boolean esSpam, int tiempoCuarentena) {
         this.id = id;
         this.cliente = cliente;
         this.tipo = tipo;
         this.esSpam = esSpam;
-        this.tiempoCuarentena = 0;
+        this.tiempoCuarentena = tiempoCuarentena;
     }
 
-    // getters y setters
     public String getId() { return id; }
     public String getCliente() { return cliente; }
     public Tipo getTipo() { return tipo; }

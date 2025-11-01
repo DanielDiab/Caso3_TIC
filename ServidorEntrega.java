@@ -18,16 +18,17 @@ public class ServidorEntrega implements Runnable {
 
                 if (mensaje.getTipo() == Mensaje.Tipo.FIN) {
                     System.out.println("[" + nombre + "] recibió FIN. Terminando...");
-                    break; // fin del servidor
+                    break;
                 }
 
-                // Simular procesamiento
                 System.out.println("[" + nombre + "] procesando mensaje: " + mensaje);
-                Thread.sleep(500 + random.nextInt(1000));
+                Thread.sleep(100 + random.nextInt(200));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.err.println("[" + nombre + "] interrumpido.");
+        } finally {
+            System.out.println("[" + nombre + "] finalizó correctamente.");
         }
     }
 }
